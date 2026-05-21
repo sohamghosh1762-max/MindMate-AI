@@ -4,88 +4,114 @@ from deepface import DeepFace
 import math
 
 # =========================
-# MediaPipe Face Mesh Setup
+# MediaPipe Setup
 # =========================
 
 mp_face_mesh = mp.solutions.face_mesh
-
-face_mesh = mp_face_mesh.FaceMesh(
-    static_image_mode=False,
-    max_num_faces=1,
-    refine_landmarks=True,
-    min_detection_confidence=0.5,
-    min_tracking_confidence=0.5
-)
 
 # =========================
 # Eye Landmark Points
 # =========================
 
 LEFT_EYE = [33, 160, 158, 133, 153, 144]
-RIGHT_EYE = [362, 385, 387, 263, 373, 380]
 
+RIGHT_EYE = [362, 385, 387, 263, 373, 380]
 
 # =========================
 # Eye Aspect Ratio Function
 # =========================
 
-def calculate_eye_aspect_ratio(landmarks, eye_indexes, w, h):
+def calculate_eye_aspect_ratio(
+    landmarks,
+    eye_indexes,
+    w,
+    h
+):
 
     points = []
 
     for idx in eye_indexes:
 
         x = int(landmarks[idx].x * w)
+
         y = int(landmarks[idx].y * h)
 
         points.append((x, y))
 
     # Vertical distances
     v1 = math.dist(points[1], points[5])
+
     v2 = math.dist(points[2], points[4])
 
     # Horizontal distance
     h1 = math.dist(points[0], points[3])
 
     if h1 == 0:
+
         return 0
 
     ear = (v1 + v2) / (2.0 * h1)
 
     return ear
 
-
 # =========================
 # Head Direction Detection
 # =========================
 
-def detect_head_direction(nose_x, frame_center_x):
+def detect_head_direction(
+    nose_x,
+    frame_center_x
+):
 
     diff = nose_x - frame_center_x
 
     if diff > 40:
+
         return "Looking Right"
 
     elif diff < -40:
+
         return "Looking Left"
 
     else:
+
         return "Looking Center"
 
-
 # =========================
-# Main AI Detection Function
+# Main Emotion Detection
 # =========================
 
 def detect_emotion_from_frame(frame):
 
     try:
 
-        # Frame Size
+        # ====================================
+        # Initialize FaceMesh INSIDE function
+        # (Important for Render deployment)
+        # ====================================
+
+        face_mesh = mp_face_mesh.FaceMesh(
+            static_image_mode=False,
+            max_num_faces=1,
+            refine_landmarks=True,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        )
+
+        # ====================================
+        # Frame Dimensions
+        # ====================================
+
         h, w, _ = frame.shape
 
-        # RGB Conversion
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        # ====================================
+        # Convert to RGB
+        # ====================================
+
+        rgb_frame = cv2.cvtColor(
+            frame,
+            cv2.COLOR_BGR2RGB
+        )
 
         # ====================================
         # DeepFace Emotion Detection
@@ -104,7 +130,7 @@ def detect_emotion_from_frame(frame):
         )
 
         # ====================================
-        # MediaPipe Face Mesh
+        # MediaPipe Face Mesh Detection
         # ====================================
 
         results = face_mesh.process(rgb_frame)
@@ -112,7 +138,9 @@ def detect_emotion_from_frame(frame):
         face_detected = False
 
         left_ear = 0
+
         right_ear = 0
+
         avg_ear = 0
 
         blink_detected = False
@@ -124,7 +152,7 @@ def detect_emotion_from_frame(frame):
         head_direction = "Unknown"
 
         # ====================================
-        # Face Landmark Detection
+        # Face Landmark Processing
         # ====================================
 
         if results.multi_face_landmarks:
@@ -162,8 +190,11 @@ def detect_emotion_from_frame(frame):
                 # ====================================
 
                 if avg_ear < 0.12:
+
                     blink_detected = True
+
                 else:
+
                     blink_detected = False
 
                 # ====================================
@@ -171,26 +202,34 @@ def detect_emotion_from_frame(frame):
                 # ====================================
 
                 if avg_ear < 0.14:
+
                     fatigue_level = 80
+
                 else:
+
                     fatigue_level = 20
 
                 # ====================================
-                # Attention Level
+                # Attention Detection
                 # ====================================
 
                 if avg_ear > 0.15:
+
                     attention_level = 90
+
                 else:
+
                     attention_level = 55
 
                 # ====================================
-                # Head Direction
+                # Head Direction Detection
                 # ====================================
 
                 nose_tip = landmarks[1]
 
-                nose_x = int(nose_tip.x * w)
+                nose_x = int(
+                    nose_tip.x * w
+                )
 
                 frame_center_x = w // 2
 
@@ -200,17 +239,21 @@ def detect_emotion_from_frame(frame):
                 )
 
         # ====================================
-        # DEBUG TERMINAL OUTPUT
+        # Debug Logs
         # ====================================
 
         print("===================================")
+
         print("Emotion:", dominant_emotion)
 
         print("LEFT EAR:", round(left_ear, 2))
+
         print("RIGHT EAR:", round(right_ear, 2))
+
         print("AVG EAR:", round(avg_ear, 2))
 
         print("Attention:", attention_level)
+
         print("Fatigue:", fatigue_level)
 
         print("Head Direction:", head_direction)
@@ -218,10 +261,11 @@ def detect_emotion_from_frame(frame):
         print("Blink:", blink_detected)
 
         print("Face Detected:", face_detected)
+
         print("===================================")
 
         # ====================================
-        # Return Response
+        # Return Final JSON Response
         # ====================================
 
         return {
@@ -230,7 +274,10 @@ def detect_emotion_from_frame(frame):
 
             "emotion": dominant_emotion,
 
-            "confidence": round(confidence, 2),
+            "confidence": round(
+                confidence,
+                2
+            ),
 
             "face_detected": face_detected,
 
@@ -242,16 +289,28 @@ def detect_emotion_from_frame(frame):
 
             "head_direction": head_direction,
 
-            "left_eye_ratio": round(left_ear, 2),
+            "left_eye_ratio": round(
+                left_ear,
+                2
+            ),
 
-            "right_eye_ratio": round(right_ear, 2),
+            "right_eye_ratio": round(
+                right_ear,
+                2
+            ),
 
-            "avg_eye_ratio": round(avg_ear, 2)
+            "avg_eye_ratio": round(
+                avg_ear,
+                2
+            )
         }
 
     except Exception as e:
 
-        print("Emotion Service Error:", str(e))
+        print(
+            "Emotion Service Error:",
+            str(e)
+        )
 
         return {
 
