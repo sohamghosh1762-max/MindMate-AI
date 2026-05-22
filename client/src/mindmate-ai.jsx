@@ -228,7 +228,7 @@ function EmotionDetector({ currentEmotion, setCurrentEmotion }) {
         ctx.drawImage(videoRef.current, 0, 0);
         const image = canvas.toDataURL("image/jpeg");
         try {
-          const response = await fetch("http://127.0.0.1:5000/api/emotion/detect", {
+          const response = await fetch("http://127.0.0.1:10000/api/emotion/detect", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ image }),
@@ -240,16 +240,22 @@ function EmotionDetector({ currentEmotion, setCurrentEmotion }) {
           setStressLevel(data.fatigue_level || 0);
           setHeadDirection(data.head_direction || "Center");
           setBlinkDetected(data.blink_detected || false);
-          setEmotionHistory(prev =>
-            prev.map(item => ({
-              ...item,
-              val: item.emotion === data.emotion ? Math.random() * 20 + 75 : Math.random() * 30 + 5,
-            }))
-          );
+          if (data.emotion_scores) {
+          setEmotionHistory(
+          Object.entries(
+          data.emotion_scores
+    ).map(([emotion, value]) => ({
+
+      emotion: emotion.toLowerCase(),
+
+      val: Math.round(value)
+    }))
+  );
+}
         } catch (error) {
           console.log("Emotion Detection Error:", error);
         }
-      }, 5000);
+      }, 2500);
     } catch {
       setPermission("denied");
     }
@@ -457,7 +463,7 @@ function Chatbot({ currentEmotion }) {
     setMessages(prev => [...prev, userMsg]);
     setInput(""); setLoading(true);
     try {
-      const res = await fetch("http://127.0.0.1:10000/api/chatbot", {
+      const res = await fetch("http://127.0.0.1:10000/api/chatbot/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({message: text,emotion: currentEmotion,history: messages}),

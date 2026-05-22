@@ -20,6 +20,8 @@ last_confidence = 0
 
 frame_skip = 0
 
+emotion_history = []
+
 # =========================
 # Eye Landmark Points
 # =========================
@@ -64,27 +66,49 @@ def calculate_eye_aspect_ratio(
     return ear
 
 # =========================
-# Head Direction
+# Advanced Head Direction
 # =========================
 
 def detect_head_direction(
     nose_x,
-    frame_center_x
+    nose_y,
+    frame_center_x,
+    frame_center_y
 ):
 
-    diff = nose_x - frame_center_x
+    horizontal_diff = nose_x - frame_center_x
 
-    if diff > 40:
+    vertical_diff = nose_y - frame_center_y
+
+    # ====================================
+    # Horizontal Detection
+    # ====================================
+
+    if horizontal_diff > 45:
 
         return "Looking Right"
 
-    elif diff < -40:
+    elif horizontal_diff < -45:
 
         return "Looking Left"
 
-    else:
+    # ====================================
+    # Vertical Detection
+    # ====================================
 
-        return "Looking Center"
+    elif vertical_diff > 35:
+
+        return "Looking Down"
+
+    elif vertical_diff < -35:
+
+        return "Looking Up"
+
+    # ====================================
+    # Center
+    # ====================================
+
+    return "Looking Center"
 
 # =========================
 # Main Emotion Detection
@@ -98,15 +122,17 @@ def detect_emotion_from_frame(frame):
 
     global frame_skip
 
+    global emotion_history
+
     try:
 
         # ====================================
-        # Skip Frames For Better Performance
+        # Frame Skipping
         # ====================================
 
         frame_skip += 1
 
-        if frame_skip % 15 != 0:
+        if frame_skip % 25 != 0:
 
             return {
 
@@ -124,10 +150,15 @@ def detect_emotion_from_frame(frame):
         # ====================================
 
         face_mesh = mp_face_mesh.FaceMesh(
+
             static_image_mode=False,
+
             max_num_faces=1,
+
             refine_landmarks=True,
+
             min_detection_confidence=0.5,
+
             min_tracking_confidence=0.5
         )
 
@@ -136,28 +167,78 @@ def detect_emotion_from_frame(frame):
         # ====================================
 
         small_frame = cv2.resize(
+
             frame,
+
             (320, 240)
+        )
+
+        # ====================================
+        # Improve Frame Quality
+        # ====================================
+
+        small_frame = cv2.GaussianBlur(
+
+            small_frame,
+
+            (3, 3),
+
+            0
+        )
+
+        small_frame = cv2.convertScaleAbs(
+
+            small_frame,
+
+            alpha=1.2,
+
+            beta=10
         )
 
         h, w, _ = small_frame.shape
 
         # ====================================
-        # Convert to RGB
+        # RGB Conversion
         # ====================================
 
         rgb_frame = cv2.cvtColor(
+
             small_frame,
+
             cv2.COLOR_BGR2RGB
         )
+
+        # ====================================
+        # FaceMesh Detection
+        # ====================================
+
+        results = face_mesh.process(
+            rgb_frame
+        )
+
+        if not results.multi_face_landmarks:
+
+            return {
+
+                "status": "success",
+
+                "emotion": last_emotion,
+
+                "confidence": last_confidence,
+
+                "face_detected": False
+            }
 
         # ====================================
         # DeepFace Emotion Detection
         # ====================================
 
         result = DeepFace.analyze(
+
             small_frame,
+
             actions=['emotion'],
+
             enforce_detection=False
         )
 
@@ -168,6 +249,33 @@ def detect_emotion_from_frame(frame):
         )
 
         emotion_scores = result[0]['emotion']
+
+        # ====================================
+        # Confidence Filtering
+        # ====================================
+
+        if confidence < 35:
+
+            dominant_emotion = last_emotion
+
+        # ====================================
+        # Emotion Smoothing
+        # ====================================
+
+        emotion_history.append(
+            dominant_emotion
+        )
+
+        if len(emotion_history) > 10:
+
+            emotion_history.pop(0)
+
+        dominant_emotion = max(
+
+            set(emotion_history),
+
+            key=emotion_history.count
+        )
 
         # ====================================
         # Save Latest Emotion
@@ -181,14 +289,10 @@ def detect_emotion_from_frame(frame):
         )
 
         # ====================================
-        # FaceMesh Processing
+        # Initialize Variables
         # ====================================
 
-        results = face_mesh.process(
-            rgb_frame
-        )
-
-        face_detected = False
+        face_detected = True
 
         left_ear = 0
 
@@ -202,75 +306,103 @@ def detect_emotion_from_frame(frame):
 
         fatigue_level = 0
 
-        head_direction = "Unknown"
+        head_direction = "Looking Center"
 
         # ====================================
-        # Landmark Analysis
+        # Face Landmark Analysis
         # ====================================
 
-        if results.multi_face_landmarks:
+        for face_landmarks in results.multi_face_landmarks:
 
-            face_detected = True
+            landmarks = face_landmarks.landmark
 
-            for face_landmarks in results.multi_face_landmarks:
+            # ====================================
+            # Eye Analysis
+            # ====================================
 
-                landmarks = face_landmarks.landmark
+            left_ear = calculate_eye_aspect_ratio(
 
-                left_ear = calculate_eye_aspect_ratio(
-                    landmarks,
-                    LEFT_EYE,
-                    w,
-                    h
-                )
+                landmarks,
 
-                right_ear = calculate_eye_aspect_ratio(
-                    landmarks,
-                    RIGHT_EYE,
-                    w,
-                    h
-                )
+                LEFT_EYE,
 
-                avg_ear = (
-                    left_ear + right_ear
-                ) / 2
+                w,
 
-                # ====================================
-                # Blink Detection
-                # ====================================
+                h
+            )
 
-                blink_detected = avg_ear < 0.12
+            right_ear = calculate_eye_aspect_ratio(
 
-                # ====================================
-                # Fatigue
-                # ====================================
+                landmarks,
 
-                fatigue_level = 80 if avg_ear < 0.14 else 20
+                RIGHT_EYE,
 
-                # ====================================
-                # Attention
-                # ====================================
+                w,
 
-                attention_level = 90 if avg_ear > 0.15 else 55
+                h
+            )
 
-                # ====================================
-                # Head Direction
-                # ====================================
+            avg_ear = (
+                left_ear + right_ear
+            ) / 2
 
-                nose_tip = landmarks[1]
+            # ====================================
+            # Blink Detection
+            # ====================================
 
-                nose_x = int(
-                    nose_tip.x * w
-                )
+            blink_detected = avg_ear < 0.12
 
-                frame_center_x = w // 2
+            # ====================================
+            # Fatigue Detection
+            # ====================================
 
-                head_direction = detect_head_direction(
-                    nose_x,
-                    frame_center_x
-                )
+            fatigue_level = 80 if avg_ear < 0.14 else 20
+
+            # ====================================
+            # Attention Detection
+            # ====================================
+
+            attention_level = 90 if avg_ear > 0.15 else 55
+
+            # ====================================
+            # Head Direction Detection
+            # ====================================
+
+            nose_tip = landmarks[1]
+
+            nose_x = int(
+                nose_tip.x * w
+            )
+
+            nose_y = int(
+                nose_tip.y * h
+            )
+
+            frame_center_x = w // 2
+
+            frame_center_y = h // 2
+
+            head_direction = detect_head_direction(
+
+                nose_x,
+
+                nose_y,
+
+                frame_center_x,
+
+                frame_center_y
+            )
+
+            # ====================================
+            # Attention Loss
+            # ====================================
+
+            if head_direction != "Looking Center":
+
+                attention_level = 40
 
         # ====================================
-        # Store Analytics in MongoDB
+        # Store Analytics
         # ====================================
 
         db.emotion_history.insert_one({
@@ -284,7 +416,9 @@ def detect_emotion_from_frame(frame):
 
             "attention_level": attention_level,
 
-            "fatigue_level": fatigue_level
+            "fatigue_level": fatigue_level,
+
+            "head_direction": head_direction
         })
 
         # ====================================

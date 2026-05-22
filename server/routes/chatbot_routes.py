@@ -1,12 +1,17 @@
 from flask import Blueprint, jsonify
-from controllers.chatbot_controller import chatbot_response
+
+from controllers.chatbot_controller import (
+    chatbot_response
+)
 
 # =========================
 # Blueprint Setup
 # =========================
 
 chatbot_bp = Blueprint(
+
     "chatbot_bp",
+
     __name__
 )
 
@@ -21,13 +26,15 @@ chatbot_bp = Blueprint(
 def home():
 
     return jsonify({
+
         "status": "success",
-        "message": "MindMate AI Chatbot Routes Working"
+
+        "message":
+        "MindMate AI Chatbot Routes Working"
     })
 
-
 # =========================
-# Gemini AI Chat Route
+# Main Chatbot Route
 # =========================
 
 @chatbot_bp.route(
