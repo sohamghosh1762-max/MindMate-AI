@@ -2,12 +2,23 @@ import cv2
 import mediapipe as mp
 from deepface import DeepFace
 import math
+from database.db import db
 
 # =========================
 # MediaPipe Setup
 # =========================
 
 mp_face_mesh = mp.solutions.face_mesh
+
+# =========================
+# Global State
+# =========================
+
+last_emotion = "Neutral"
+
+last_confidence = 0
+
+frame_skip = 0
 
 # =========================
 # Eye Landmark Points
@@ -18,7 +29,7 @@ LEFT_EYE = [33, 160, 158, 133, 153, 144]
 RIGHT_EYE = [362, 385, 387, 263, 373, 380]
 
 # =========================
-# Eye Aspect Ratio Function
+# Eye Aspect Ratio
 # =========================
 
 def calculate_eye_aspect_ratio(
@@ -38,12 +49,10 @@ def calculate_eye_aspect_ratio(
 
         points.append((x, y))
 
-    # Vertical distances
     v1 = math.dist(points[1], points[5])
 
     v2 = math.dist(points[2], points[4])
 
-    # Horizontal distance
     h1 = math.dist(points[0], points[3])
 
     if h1 == 0:
@@ -55,7 +64,7 @@ def calculate_eye_aspect_ratio(
     return ear
 
 # =========================
-# Head Direction Detection
+# Head Direction
 # =========================
 
 def detect_head_direction(
@@ -83,11 +92,35 @@ def detect_head_direction(
 
 def detect_emotion_from_frame(frame):
 
+    global last_emotion
+
+    global last_confidence
+
+    global frame_skip
+
     try:
 
         # ====================================
-        # Initialize FaceMesh INSIDE function
-        # (Important for Render deployment)
+        # Skip Frames For Better Performance
+        # ====================================
+
+        frame_skip += 1
+
+        if frame_skip % 15 != 0:
+
+            return {
+
+                "status": "success",
+
+                "emotion": last_emotion,
+
+                "confidence": last_confidence,
+
+                "face_detected": True
+            }
+
+        # ====================================
+        # Initialize FaceMesh
         # ====================================
 
         face_mesh = mp_face_mesh.FaceMesh(
@@ -99,17 +132,22 @@ def detect_emotion_from_frame(frame):
         )
 
         # ====================================
-        # Frame Dimensions
+        # Resize Frame
         # ====================================
 
-        h, w, _ = frame.shape
+        small_frame = cv2.resize(
+            frame,
+            (320, 240)
+        )
+
+        h, w, _ = small_frame.shape
 
         # ====================================
         # Convert to RGB
         # ====================================
 
         rgb_frame = cv2.cvtColor(
-            frame,
+            small_frame,
             cv2.COLOR_BGR2RGB
         )
 
@@ -118,7 +156,7 @@ def detect_emotion_from_frame(frame):
         # ====================================
 
         result = DeepFace.analyze(
-            frame,
+            small_frame,
             actions=['emotion'],
             enforce_detection=False
         )
@@ -129,11 +167,26 @@ def detect_emotion_from_frame(frame):
             result[0]['emotion'].values()
         )
 
+        emotion_scores = result[0]['emotion']
+
         # ====================================
-        # MediaPipe Face Mesh Detection
+        # Save Latest Emotion
         # ====================================
 
-        results = face_mesh.process(rgb_frame)
+        last_emotion = dominant_emotion
+
+        last_confidence = round(
+            confidence,
+            2
+        )
+
+        # ====================================
+        # FaceMesh Processing
+        # ====================================
+
+        results = face_mesh.process(
+            rgb_frame
+        )
 
         face_detected = False
 
@@ -152,7 +205,7 @@ def detect_emotion_from_frame(frame):
         head_direction = "Unknown"
 
         # ====================================
-        # Face Landmark Processing
+        # Landmark Analysis
         # ====================================
 
         if results.multi_face_landmarks:
@@ -162,10 +215,6 @@ def detect_emotion_from_frame(frame):
             for face_landmarks in results.multi_face_landmarks:
 
                 landmarks = face_landmarks.landmark
-
-                # ====================================
-                # Eye Tracking
-                # ====================================
 
                 left_ear = calculate_eye_aspect_ratio(
                     landmarks,
@@ -189,40 +238,22 @@ def detect_emotion_from_frame(frame):
                 # Blink Detection
                 # ====================================
 
-                if avg_ear < 0.12:
-
-                    blink_detected = True
-
-                else:
-
-                    blink_detected = False
+                blink_detected = avg_ear < 0.12
 
                 # ====================================
-                # Fatigue Detection
+                # Fatigue
                 # ====================================
 
-                if avg_ear < 0.14:
-
-                    fatigue_level = 80
-
-                else:
-
-                    fatigue_level = 20
+                fatigue_level = 80 if avg_ear < 0.14 else 20
 
                 # ====================================
-                # Attention Detection
+                # Attention
                 # ====================================
 
-                if avg_ear > 0.15:
-
-                    attention_level = 90
-
-                else:
-
-                    attention_level = 55
+                attention_level = 90 if avg_ear > 0.15 else 55
 
                 # ====================================
-                # Head Direction Detection
+                # Head Direction
                 # ====================================
 
                 nose_tip = landmarks[1]
@@ -239,33 +270,25 @@ def detect_emotion_from_frame(frame):
                 )
 
         # ====================================
-        # Debug Logs
+        # Store Analytics in MongoDB
         # ====================================
 
-        print("===================================")
+        db.emotion_history.insert_one({
 
-        print("Emotion:", dominant_emotion)
+            "emotion": dominant_emotion,
 
-        print("LEFT EAR:", round(left_ear, 2))
+            "confidence": round(
+                confidence,
+                2
+            ),
 
-        print("RIGHT EAR:", round(right_ear, 2))
+            "attention_level": attention_level,
 
-        print("AVG EAR:", round(avg_ear, 2))
-
-        print("Attention:", attention_level)
-
-        print("Fatigue:", fatigue_level)
-
-        print("Head Direction:", head_direction)
-
-        print("Blink:", blink_detected)
-
-        print("Face Detected:", face_detected)
-
-        print("===================================")
+            "fatigue_level": fatigue_level
+        })
 
         # ====================================
-        # Return Final JSON Response
+        # Final Response
         # ====================================
 
         return {
@@ -278,6 +301,8 @@ def detect_emotion_from_frame(frame):
                 confidence,
                 2
             ),
+
+            "emotion_scores": emotion_scores,
 
             "face_detected": face_detected,
 

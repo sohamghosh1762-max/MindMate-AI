@@ -1,14 +1,4 @@
-from transformers import pipeline, Conversation
 import random
-
-# =========================
-# Load BlenderBot Model
-# =========================
-
-chatbot_pipeline = pipeline(
-    "conversational",
-    model="facebook/blenderbot-400M-distill"
-)
 
 # =========================
 # Conversation Memory
@@ -24,119 +14,119 @@ RESPONSES = {
 
     "exam_stress": [
 
-        "Exams can feel overwhelming, but try focusing on one chapter at a time instead of everything together. Small consistent progress is much more effective than overworking yourself 💙",
+        "Exams can feel overwhelming, but try focusing on one chapter at a time instead of everything together 💙",
 
-        "When exam pressure builds up, your mind can become overloaded. Try the 25-minute Pomodoro study method with short breaks 🌟",
+        "Try the Pomodoro study method 🌟 Study for 25 minutes and take short breaks.",
 
-        "You don’t need to be perfect to succeed. Stay hydrated, breathe slowly, and remember your health matters too."
+        "Remember to stay hydrated and avoid overworking yourself 🌸"
     ],
 
     "anxiety": [
 
-        "Anxiety can make your thoughts feel heavy, but you are not alone 💙 Try breathing in slowly for 4 seconds and out for 6 seconds.",
+        "Anxiety can feel heavy 💙 Try slow breathing for a few moments.",
 
-        "Focus only on what you can control today. Your future is built one small step at a time 🌸",
+        "Focus only on what you can control today 🌸",
 
-        "Relax your shoulders and unclench your jaw. Your body deserves calm too."
+        "Relax your shoulders and unclench your jaw 🌙"
     ],
 
     "motivation": [
 
-        "Motivation often comes after starting 🌟 Try completing one tiny task first.",
+        "Motivation often comes after starting 🌟 Try one tiny task first.",
 
-        "You’ve already survived difficult days before, and that proves your strength 💙",
+        "You’ve survived difficult days before 💙",
 
-        "Progress is still progress, even when it feels slow."
+        "Progress matters even when it feels slow 🌸"
     ],
 
     "burnout": [
 
-        "Burnout happens when your mind stays under pressure for too long 💙 Rest is productive too.",
+        "Burnout happens when stress builds for too long 💙",
 
-        "Your brain needs recovery just like your body. Take breaks without guilt 🌸",
+        "Rest is productive too 🌸",
 
-        "Try sleeping properly tonight and reducing pressure on yourself for a while."
+        "Your mind deserves recovery and peace 🌙"
     ],
 
     "sleep": [
 
-        "Avoid screens before bed and try calming music or deep breathing 🌙",
+        "Avoid screens before bed 🌙",
 
-        "A peaceful bedtime routine can help your brain relax naturally 💙",
+        "Deep breathing and calming music may help 💙",
 
-        "Your body and mind heal during sleep. Proper rest matters greatly."
+        "Your body heals during sleep 🌸"
     ],
 
     "lonely": [
 
-        "Feeling lonely does not mean you are unwanted 💙 Many people silently struggle too.",
+        "Feeling lonely does not mean you are unwanted 💙",
 
-        "Even sending a small message to someone you trust can help 🌸"
+        "Even a small conversation with someone trusted can help 🌸"
     ],
 
     "study_tips": [
 
-        "Study in focused short sessions instead of exhausting marathon hours 📚",
+        "Short focused sessions improve concentration 📚",
 
-        "Active recall and spaced repetition improve memory significantly 🌟",
+        "Active recall and spaced repetition work very well 🌟",
 
-        "Keep your phone away while studying to improve concentration."
+        "Keep distractions away while studying 💙"
     ],
 
     "panic": [
 
-        "You are safe right now 💙 Place one hand on your chest and breathe slowly.",
+        "You are safe right now 💙",
 
-        "Panic attacks feel scary, but they pass 🌸 Focus on slow breathing."
+        "Slow breathing helps panic pass more gently 🌸"
     ],
 
     "sad": [
 
-        "I’m really sorry you’re feeling this way 💙 Difficult emotions do not define your worth.",
+        "I’m sorry you’re feeling this way 💙",
 
-        "Be patient and kind to yourself 🌸 You deserve support too."
+        "Be patient and kind to yourself 🌸"
     ],
 
     "breathing": [
 
-        "Let’s breathe together 💙 Inhale slowly for 4 seconds… hold for 4… exhale for 6 seconds 🌸",
+        "Inhale slowly for 4 seconds… hold… exhale slowly 🌙",
 
-        "Close your eyes gently and focus only on your breathing 🌙"
+        "Focus only on your breathing 💙"
     ],
 
     "meditation": [
 
-        "Find a comfortable position 🌸 Close your eyes and slowly focus on your breath 💙",
+        "Close your eyes gently and focus on your breath 🌸",
 
-        "Allow every breath to release stress and tension from your body 🌙"
+        "Allow every breath to release tension 💙"
     ],
 
     "confidence": [
 
-        "You are more capable than you think 💙 Self-doubt hides your strengths sometimes.",
+        "You are more capable than you think 💙",
 
-        "Confidence grows slowly through small achievements 🌟"
+        "Confidence grows through small achievements 🌟"
     ],
 
     "relationship": [
 
-        "Relationship stress can feel emotionally exhausting 💙 Give yourself time to heal.",
+        "Relationship stress can feel emotionally exhausting 💙",
 
-        "Heartbreak takes time, but emotional pain does become lighter 🌸"
+        "Healing takes time 🌸"
     ],
 
     "productivity": [
 
-        "Try the Pomodoro technique 🍅 Study for 25 minutes, then rest for 5 minutes.",
+        "Set one achievable target today 🌟",
 
-        "Set one achievable target today instead of pressuring yourself with everything 🌟"
+        "Small progress every day matters 💙"
     ],
 
     "emergency": [
 
-        "I’m really concerned about how you’re feeling 💙 Please contact a trusted person or mental health professional immediately.",
+        "I’m concerned about how you’re feeling 💙 Please contact someone you trust or a mental health professional immediately.",
 
-        "You are not alone 🌸 Please reach out to someone you trust right now."
+        "You are not alone 🌸 Please seek support from someone nearby."
     ],
 
     "default": [
@@ -145,12 +135,12 @@ RESPONSES = {
 
         "You don’t have to handle everything alone 🌸",
 
-        "Take a deep breath 🌟 One small step at a time is enough."
+        "Take a deep breath 🌙 One small step at a time."
     ]
 }
 
 # =========================
-# Stress Severity Detection
+# Stress Detection
 # =========================
 
 def detect_stress_level(message):
@@ -174,15 +164,17 @@ def detect_stress_level(message):
     ]
 
     if any(word in text for word in severe_words):
+
         return "severe"
 
     elif any(word in text for word in moderate_words):
+
         return "moderate"
 
     return "low"
 
 # =========================
-# Advanced Intent Detection
+# Intent Detection
 # =========================
 
 def detect_intent(message):
@@ -224,8 +216,7 @@ def detect_intent(message):
 
     elif any(word in text for word in [
         "sleep",
-        "insomnia",
-        "can't sleep"
+        "insomnia"
     ]):
         return "sleep"
 
@@ -236,16 +227,14 @@ def detect_intent(message):
         return "lonely"
 
     elif any(word in text for word in [
+        "study",
         "focus",
-        "concentration",
-        "study tips",
-        "distracted"
+        "concentration"
     ]):
         return "study_tips"
 
     elif any(word in text for word in [
-        "panic",
-        "panic attack"
+        "panic"
     ]):
         return "panic"
 
@@ -259,28 +248,25 @@ def detect_intent(message):
     elif any(word in text for word in [
         "breathing",
         "relax",
-        "calm me"
+        "calm"
     ]):
         return "breathing"
 
     elif any(word in text for word in [
         "meditation",
-        "mindfulness",
-        "peace"
+        "mindfulness"
     ]):
         return "meditation"
 
     elif any(word in text for word in [
         "confidence",
-        "self esteem",
         "insecure"
     ]):
         return "confidence"
 
     elif any(word in text for word in [
         "relationship",
-        "breakup",
-        "heartbroken"
+        "breakup"
     ]):
         return "relationship"
 
@@ -293,7 +279,6 @@ def detect_intent(message):
     elif any(word in text for word in [
         "suicide",
         "kill myself",
-        "die",
         "self harm"
     ]):
         return "emergency"
@@ -311,77 +296,66 @@ def generate_mental_health_reply(
 
     try:
 
-        # Save memory
         conversation_memory.append({
+
             "message": user_message,
+
             "emotion": emotion
         })
 
-        # Detect severity
         stress_level = detect_stress_level(
             user_message
         )
 
-        # Emergency support
+        # ====================================
+        # Emergency Support
+        # ====================================
+
         if stress_level == "severe":
 
             return {
+
                 "status": "success",
+
                 "reply":
-                "I’m really concerned about how you’re feeling right now 💙 Please reach out to someone you trust or a mental health professional immediately. You deserve support and safety."
+                random.choice(
+                    RESPONSES["emergency"]
+                )
             }
 
-        # Detect intent
+        # ====================================
+        # Intent Detection
+        # ====================================
+
         intent = detect_intent(
             user_message
         )
 
-        # Smart predefined replies
-        if intent in RESPONSES:
-
-            return {
-                "status": "success",
-                "reply": random.choice(
-                    RESPONSES[intent]
-                )
-            }
-
-        # =========================
-        # AI Conversation Fallback
-        # =========================
-
-        conversation = Conversation(
-            user_message
-        )
-
-        result = chatbot_pipeline(
-            conversation
-        )
-
-        reply = result.generated_responses[-1]
-
-        # Short reply fix
-        if len(reply.split()) < 6:
-
-            reply = random.choice(
-                RESPONSES["default"]
-            )
+        # ====================================
+        # Smart Response
+        # ====================================
 
         return {
 
             "status": "success",
 
-            "reply": reply
+            "reply":
+            random.choice(
+                RESPONSES[intent]
+            )
         }
 
     except Exception as e:
 
-        print("CHATBOT ERROR:", str(e))
+        print(
+            "CHATBOT ERROR:",
+            str(e)
+        )
 
         return {
 
             "status": "error",
 
             "reply":
-                "I’m here for you 💙 Please take a deep breath and try again."
+            "I’m here for you 💙 Please try again."
         }
