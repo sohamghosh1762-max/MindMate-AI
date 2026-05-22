@@ -457,7 +457,7 @@ function Chatbot({ currentEmotion }) {
     setMessages(prev => [...prev, userMsg]);
     setInput(""); setLoading(true);
     try {
-      const res = await fetch("http://127.0.0.1:5000/api/chatbot/chat", {
+      const res = await fetch("http://127.0.0.1:10000/api/chatbot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({message: text,emotion: currentEmotion,history: messages}),
