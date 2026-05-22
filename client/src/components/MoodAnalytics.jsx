@@ -35,7 +35,7 @@ export default function MoodAnalytics() {
   useEffect(() => {
 
     fetch(
-      "http://127.0.0.1:5000/api/analytics/dashboard"
+       "http://127.0.0.1:10000/api/analytics"
     )
       .then(res => res.json())
       .then(data => {

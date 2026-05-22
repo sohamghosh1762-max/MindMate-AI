@@ -210,6 +210,7 @@ function EmotionDetector({ currentEmotion, setCurrentEmotion }) {
     Object.keys(EMOTION_CONFIG).map(e => ({ emotion: e, val: Math.random() * 60 + 10 }))
   );
   const intervalRef = useRef(null);
+  const processingRef = useRef(false);
   const cfg = EMOTION_CONFIG[currentEmotion] || EMOTION_CONFIG.neutral;
 
   const startCamera = async () => {
@@ -255,7 +256,7 @@ function EmotionDetector({ currentEmotion, setCurrentEmotion }) {
         } catch (error) {
           console.log("Emotion Detection Error:", error);
         }
-      }, 2500);
+      }, 3500);
     } catch {
       setPermission("denied");
     }

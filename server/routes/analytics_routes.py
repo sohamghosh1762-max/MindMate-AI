@@ -5,14 +5,20 @@ from controllers.analytics_controller import (
 )
 
 analytics_bp = Blueprint(
+
     "analytics_bp",
+
     __name__
 )
 
+# =========================
+# Analytics Dashboard
+# =========================
+
 @analytics_bp.route(
-    "/dashboard",
+    "/",
     methods=["GET"]
 )
-def dashboard():
+def analytics_dashboard():
 
     return get_dashboard_data()
